@@ -65,4 +65,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-Yes, this README was written with AI. It's a README, that's fine 😄
+> De la rime et des mots dans l'art d'arrimer les mots
+>
+> MC Solaar, "Superstarr," *Prose Combat* (1994)
