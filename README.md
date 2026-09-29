@@ -107,3 +107,7 @@ the repo is ever renamed or moved to a custom domain or user-page root.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the app is put together: the
 File System Access API platform layer, the provider abstraction,
 minimal-diff saving, and the fresh-context guarantee described above.
+
+## Final note
+
+Yes, this README was written with AI. But that's technical, so it's fine 😄.
