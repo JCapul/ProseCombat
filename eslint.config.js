@@ -1,4 +1,4 @@
-import tseslint from '@electron-toolkit/eslint-config-ts'
+import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
@@ -7,7 +7,7 @@ export default tseslint.config(
   { ignores: ['out', 'dist', 'node_modules', '**/*.d.ts', 'e2e/**'] },
   tseslint.configs.recommended,
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'providers/**/*.ts'],
     languageOptions: {
       globals: globals.browser
     },
@@ -18,12 +18,6 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': 'off'
-    }
-  },
-  {
-    files: ['electron/**/*.ts', 'providers/**/*.ts'],
-    languageOptions: {
-      globals: globals.node
     }
   },
   {

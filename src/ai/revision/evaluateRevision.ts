@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/react'
 import type { Comment } from '@shared/types/comments'
-import { api } from '../../ipcClient/api'
+import { api } from '../../platform/api'
 import { useCommentsStore } from '../../comments/commentsStore'
 import { commentDecorationPluginKey, getLivePositions } from '../../comments/anchoring/decorationPlugin'
 

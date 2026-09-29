@@ -37,7 +37,9 @@ export class AnthropicProvider implements LLMProvider {
   private model: string
 
   constructor(options: AnthropicProviderOptions) {
-    this.client = new Anthropic({ apiKey: options.apiKey })
+    // Safe here: this class only ever runs in the browser (there is no Node main process
+    // anymore), and the key is the user's own, entered locally into their own browser.
+    this.client = new Anthropic({ apiKey: options.apiKey, dangerouslyAllowBrowser: true })
     this.model = options.model
   }
 

@@ -14,9 +14,9 @@ import { DetachedCommentsList } from './comments/DetachedCommentsList'
 import { LinkEditPopover } from './editor/links/LinkEditPopover'
 import { CommandPalette } from './ai/commandPalette/CommandPalette'
 import { SettingsPanel } from './settings/SettingsPanel'
-import { api } from './ipcClient/api'
-
-const UNTITLED_DEFAULT_PATH = 'untitled.md'
+import { WorkspaceFileList } from './fileBrowser/WorkspaceFileList'
+import { api } from './platform/api'
+import { peekLastWorkspaceName } from './platform/workspace'
 
 export default function App(): React.JSX.Element {
   const editorRef = useRef<Editor | null>(null)
@@ -24,11 +24,17 @@ export default function App(): React.JSX.Element {
   const [documentKey, setDocumentKey] = useState('untitled')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [fileListOpen, setFileListOpen] = useState(false)
+  const [rememberedWorkspaceName, setRememberedWorkspaceName] = useState<string | null>(null)
 
-  const filePath = useDocumentStore((s) => s.filePath)
+  const doc = useDocumentStore((s) => s.doc)
+  const workspaceDirHandle = useDocumentStore((s) => s.workspaceDirHandle)
+  const workspaceFiles = useDocumentStore((s) => s.workspaceFiles)
   const originalSource = useDocumentStore((s) => s.originalSource)
   const isSaving = useDocumentStore((s) => s.isSaving)
   const lastError = useDocumentStore((s) => s.lastError)
+  const setWorkspace = useDocumentStore((s) => s.setWorkspace)
+  const addWorkspaceFile = useDocumentStore((s) => s.addWorkspaceFile)
   const setOpenedFile = useDocumentStore((s) => s.setOpenedFile)
   const markSaved = useDocumentStore((s) => s.markSaved)
   const setSaving = useDocumentStore((s) => s.setSaving)
@@ -45,6 +51,10 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     void loadSettings()
   }, [loadSettings])
+
+  useEffect(() => {
+    void peekLastWorkspaceName().then(setRememberedWorkspaceName)
+  }, [])
 
   useEffect(() => {
     const theme = settings?.focusMode.theme
@@ -69,22 +79,62 @@ export default function App(): React.JSX.Element {
     })
   }, [])
 
-  const handleOpen = useCallback(async () => {
-    const result = await api.file.open()
-    if (!result) return
-    setOpenedFile(result.path, result.content)
-    setDocumentKey(result.path)
-  }, [setOpenedFile])
+  const openDocument = useCallback(
+    (openedDoc: { name: string; fileHandle: FileSystemFileHandle; dirHandle: FileSystemDirectoryHandle }, content: string) => {
+      setOpenedFile(openedDoc, content)
+      setDocumentKey(openedDoc.name)
+      setFileListOpen(false)
+    },
+    [setOpenedFile]
+  )
 
-  const handleNew = useCallback(async () => {
-    try {
-      const result = await api.file.new()
-      setOpenedFile(result.path, result.content)
-      setDocumentKey(result.path)
-    } catch {
-      // user canceled the save dialog — nothing to do
+  // "Open" is folder-first: the File System Access API can't get a file's parent
+  // directory from a file handle alone, so the whole workspace folder is what gets
+  // picked and remembered — the file list below it is just an in-app affordance.
+  const handleOpen = useCallback(async () => {
+    if (workspaceDirHandle) {
+      setFileListOpen(true)
+      return
     }
-  }, [setOpenedFile])
+    const result = await api.file.openWorkspace()
+    if (!result) return
+    setWorkspace(result.dirHandle, result.files)
+    setRememberedWorkspaceName(result.dirHandle.name)
+    setFileListOpen(true)
+  }, [workspaceDirHandle, setWorkspace])
+
+  const handleReopenLastWorkspace = useCallback(async () => {
+    const result = await api.file.reopenLastWorkspace()
+    if (!result) return
+    setWorkspace(result.dirHandle, result.files)
+    setFileListOpen(true)
+  }, [setWorkspace])
+
+  const handleChangeWorkspace = useCallback(async () => {
+    const result = await api.file.openWorkspace()
+    if (!result) return
+    setWorkspace(result.dirHandle, result.files)
+    setRememberedWorkspaceName(result.dirHandle.name)
+  }, [setWorkspace])
+
+  const handleSelectFile = useCallback(
+    async (name: string) => {
+      if (!workspaceDirHandle) return
+      const { doc: openedDoc, content } = await api.file.openFile(workspaceDirHandle, name)
+      openDocument(openedDoc, content)
+    },
+    [workspaceDirHandle, openDocument]
+  )
+
+  const handleCreateNewFile = useCallback(
+    async (name: string) => {
+      if (!workspaceDirHandle) return
+      const { doc: newDoc, content } = await api.file.createNew(workspaceDirHandle, name)
+      addWorkspaceFile(name)
+      openDocument(newDoc, content)
+    },
+    [workspaceDirHandle, addWorkspaceFile, openDocument]
+  )
 
   const handleSave = useCallback(async () => {
     const editor = editorRef.current
@@ -95,26 +145,44 @@ export default function App(): React.JSX.Element {
       const pluginState = blockTrackingPluginKey.getState(editor.state)
       const dirtyFlags = getDirtyFlags(pluginState)
 
-      const contentToWrite = filePath
+      const contentToWrite = doc
         ? serializeWithMinimalDiff({ originalSource, freshFullMarkdown, dirtyFlags })
         : freshFullMarkdown
 
-      if (filePath) {
-        await api.file.save({ path: filePath, content: contentToWrite })
-        markSaved(filePath, contentToWrite)
-      } else {
-        const result = await api.file.saveAs({ path: UNTITLED_DEFAULT_PATH, content: contentToWrite })
-        if (result) {
-          markSaved(result.path, contentToWrite)
-          setDocumentKey(result.path)
-        } else {
-          setSaving(false)
-        }
+      if (doc) {
+        await api.file.save(doc, contentToWrite)
+        markSaved(doc, contentToWrite)
+        return
       }
+
+      // No document yet (the app's blank starting canvas): pick a workspace folder,
+      // then a filename, then save straight into it.
+      let dirHandle = workspaceDirHandle
+      if (!dirHandle) {
+        const result = await api.file.openWorkspace()
+        if (!result) {
+          setSaving(false)
+          return
+        }
+        setWorkspace(result.dirHandle, result.files)
+        setRememberedWorkspaceName(result.dirHandle.name)
+        dirHandle = result.dirHandle
+      }
+      const name = window.prompt('Save as filename:', 'untitled.md')?.trim()
+      if (!name) {
+        setSaving(false)
+        return
+      }
+      const fileName = /\.(md|markdown)$/i.test(name) ? name : `${name}.md`
+      const { doc: newDoc } = await api.file.createNew(dirHandle, fileName)
+      await api.file.save(newDoc, contentToWrite)
+      addWorkspaceFile(fileName)
+      markSaved(newDoc, contentToWrite)
+      setDocumentKey(newDoc.name)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [filePath, originalSource, setSaving, markSaved, setError])
+  }, [doc, originalSource, workspaceDirHandle, setWorkspace, addWorkspaceFile, setSaving, markSaved, setError])
 
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent): void {
@@ -138,11 +206,11 @@ export default function App(): React.JSX.Element {
     editorRef.current = readyEditor
     setEditor(readyEditor)
     void (async () => {
-      const path = useDocumentStore.getState().filePath
-      if (path) {
-        await useCommentsStore.getState().loadForFile(path)
+      const openDoc = useDocumentStore.getState().doc
+      if (openDoc) {
+        await useCommentsStore.getState().loadForFile(openDoc)
       } else {
-        useCommentsStore.getState().resetForNewFile('untitled')
+        useCommentsStore.getState().resetForNewFile()
       }
       applyReanchoring(readyEditor, useCommentsStore.getState().comments)
     })()
@@ -165,8 +233,12 @@ export default function App(): React.JSX.Element {
     <div className="app-shell" style={colorOverrides as React.CSSProperties}>
       {!focusModeActive && (
         <div className="app-toolbar">
-          <button onClick={() => void handleNew()}>New</button>
           <button onClick={() => void handleOpen()}>Open</button>
+          {!workspaceDirHandle && rememberedWorkspaceName && (
+            <button onClick={() => void handleReopenLastWorkspace()}>
+              Reopen "{rememberedWorkspaceName}"
+            </button>
+          )}
           <button onClick={() => void handleSave()} disabled={isSaving}>
             {isSaving ? 'Saving…' : 'Save'}
           </button>
@@ -176,7 +248,7 @@ export default function App(): React.JSX.Element {
           <DetachedCommentsList />
           <span style={{ flex: 1 }} />
           {!hasApiKey && <span className="api-key-warning">No API key set</span>}
-          <span style={{ color: 'var(--muted)' }}>{filePath ?? 'Untitled'}</span>
+          <span style={{ color: 'var(--muted)' }}>{doc?.name ?? 'Untitled'}</span>
           <button onClick={() => toggleFocusMode()} title="Cmd/Ctrl+Shift+F">
             Focus mode
           </button>
@@ -204,6 +276,16 @@ export default function App(): React.JSX.Element {
         onOpenSettings={() => setSettingsOpen(true)}
       />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {fileListOpen && workspaceDirHandle && (
+        <WorkspaceFileList
+          workspaceName={workspaceDirHandle.name}
+          files={workspaceFiles}
+          onOpen={(name) => void handleSelectFile(name)}
+          onCreateNew={(name) => void handleCreateNewFile(name)}
+          onChangeWorkspace={() => void handleChangeWorkspace()}
+          onClose={() => setFileListOpen(false)}
+        />
+      )}
     </div>
   )
 }

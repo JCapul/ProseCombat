@@ -2,14 +2,15 @@ import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 import type { Comment, RevisionEvaluation, CritiqueCategory, CritiqueSeverity } from '@shared/types/comments'
 import { emptyCommentsFile, emptyRevisionsFile } from '@shared/types/comments'
-import { api } from '../ipcClient/api'
+import type { OpenDocumentRef } from '@shared/types/platformContract'
+import { api } from '../platform/api'
 
 interface CommentsState {
   comments: Comment[]
   revisions: RevisionEvaluation[]
-  filePath: string | null
-  loadForFile: (path: string) => Promise<void>
-  resetForNewFile: (path: string) => void
+  doc: OpenDocumentRef | null
+  loadForFile: (doc: OpenDocumentRef) => Promise<void>
+  resetForNewFile: () => void
   addComments: (
     input: { start: number; end: number; category: CritiqueCategory; severity: CritiqueSeverity; comment: string }[],
     docText: string,
@@ -38,18 +39,18 @@ function deriveAnchor(
 export const useCommentsStore = create<CommentsState>((set, get) => ({
   comments: [],
   revisions: [],
-  filePath: null,
+  doc: null,
 
-  loadForFile: async (path: string) => {
+  loadForFile: async (doc: OpenDocumentRef) => {
     const [commentsFile, revisionsFile] = await Promise.all([
-      api.sidecar.loadComments(path),
-      api.sidecar.loadRevisions(path)
+      api.sidecar.loadComments(doc),
+      api.sidecar.loadRevisions(doc)
     ])
-    set({ filePath: path, comments: commentsFile.comments, revisions: revisionsFile.revisions })
+    set({ doc, comments: commentsFile.comments, revisions: revisionsFile.revisions })
   },
 
-  resetForNewFile: (path: string) => {
-    set({ filePath: path, comments: [], revisions: [] })
+  resetForNewFile: () => {
+    set({ doc: null, comments: [], revisions: [] })
   },
 
   addComments: async (input, docText, contextChars = 80) => {
@@ -75,15 +76,15 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
   addRevisionEvaluation: async (evaluation) => {
     const withId: RevisionEvaluation = { ...evaluation, id: uuidv4() }
     set((s) => ({ revisions: [...s.revisions, withId] }))
-    const { filePath, revisions } = get()
-    if (filePath) {
-      await api.sidecar.saveRevisions(filePath, { ...emptyRevisionsFile(), revisions })
+    const { doc, revisions } = get()
+    if (doc) {
+      await api.sidecar.saveRevisions(doc, { ...emptyRevisionsFile(), revisions })
     }
   },
 
   persist: async () => {
-    const { filePath, comments } = get()
-    if (!filePath) return
-    await api.sidecar.saveComments(filePath, { ...emptyCommentsFile(), comments })
+    const { doc, comments } = get()
+    if (!doc) return
+    await api.sidecar.saveComments(doc, { ...emptyCommentsFile(), comments })
   }
 }))

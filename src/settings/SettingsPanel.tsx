@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ANTHROPIC_MODELS, AVAILABLE_PROVIDERS } from '@shared/types/llmProvider'
 import { useSettingsStore } from '../state/settingsStore'
-import { api } from '../ipcClient/api'
+import { api } from '../platform/api'
 import { FONT_CHOICES } from './fontChoices'
 
 export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.Element {
@@ -73,6 +73,10 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.E
             <button onClick={() => void handleClearKey()}>Clear</button>
           </div>
           {keyStatus && <div className="api-key-status">{keyStatus}</div>}
+          <p className="api-key-note">
+            Stored unencrypted in this browser's local storage — anyone with access to this
+            browser profile can read it. Don't use this on a shared or public computer.
+          </p>
         </div>
 
         <h3>Appearance</h3>

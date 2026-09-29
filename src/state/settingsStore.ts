@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { AppSettings } from '@shared/types/ipcContract'
-import { api } from '../ipcClient/api'
+import type { AppSettings } from '@shared/types/platformContract'
+import { api } from '../platform/api'
 
 interface SettingsState {
   settings: AppSettings | null

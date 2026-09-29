@@ -11,6 +11,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['{src,shared,providers,electron}/**/*.test.ts']
+    include: ['{src,shared,providers}/**/*.test.ts']
   }
 })

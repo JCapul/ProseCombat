@@ -7,14 +7,21 @@ import type {
   ProviderId
 } from './llmProvider'
 
-export interface OpenFileResult {
-  path: string
-  content: string
+/**
+ * A document opened from a workspace folder. The File System Access API has no way to
+ * get a file's parent directory from a file handle alone, so `dirHandle` (granted via
+ * showDirectoryPicker) is carried alongside the file handle everywhere — it's what makes
+ * `.ai-editor/` sidecar access possible.
+ */
+export interface OpenDocumentRef {
+  name: string
+  fileHandle: FileSystemFileHandle
+  dirHandle: FileSystemDirectoryHandle
 }
 
-export interface SaveFileArgs {
-  path: string
-  content: string
+export interface OpenWorkspaceResult {
+  dirHandle: FileSystemDirectoryHandle
+  files: string[]
 }
 
 export type SidecarComments = SidecarCommentsFile
@@ -43,20 +50,24 @@ export interface CritiqueResponse {
 export type CompareRequest = ComparisonInput
 export type CompareResponse = ComparisonResult
 
-/** Shape of the API the preload script exposes on `window.api`. */
+/** Shape of the browser-native platform API assembled in src/platform/api.ts. */
 export interface ProseCombatApi {
   file: {
-    open(): Promise<OpenFileResult | null>
-    openPath(path: string): Promise<OpenFileResult>
-    save(args: SaveFileArgs): Promise<{ path: string }>
-    saveAs(args: SaveFileArgs): Promise<{ path: string } | null>
-    'new'(): Promise<OpenFileResult>
+    /** Prompts for a project folder and lists the .md/.markdown files directly inside it. */
+    openWorkspace(): Promise<OpenWorkspaceResult | null>
+    /** Reads one of the files listed by openWorkspace(). */
+    openFile(dirHandle: FileSystemDirectoryHandle, name: string): Promise<{ doc: OpenDocumentRef; content: string }>
+    save(doc: OpenDocumentRef, content: string): Promise<void>
+    /** Creates (or overwrites) `name` inside dirHandle and returns a ref to it. */
+    createNew(dirHandle: FileSystemDirectoryHandle, name: string): Promise<{ doc: OpenDocumentRef; content: string }>
+    /** Last workspace folder remembered across reloads, if permission can be silently reused. */
+    reopenLastWorkspace(): Promise<OpenWorkspaceResult | null>
   }
   sidecar: {
-    loadComments(mdFilePath: string): Promise<SidecarComments>
-    saveComments(mdFilePath: string, data: SidecarComments): Promise<void>
-    loadRevisions(mdFilePath: string): Promise<SidecarRevisions>
-    saveRevisions(mdFilePath: string, data: SidecarRevisions): Promise<void>
+    loadComments(doc: OpenDocumentRef): Promise<SidecarComments>
+    saveComments(doc: OpenDocumentRef, data: SidecarComments): Promise<void>
+    loadRevisions(doc: OpenDocumentRef): Promise<SidecarRevisions>
+    saveRevisions(doc: OpenDocumentRef, data: SidecarRevisions): Promise<void>
   }
   credential: {
     has(): Promise<boolean>

@@ -1,27 +1,38 @@
 import { create } from 'zustand'
+import type { OpenDocumentRef } from '@shared/types/platformContract'
 
 interface DocumentState {
-  filePath: string | null
+  workspaceDirHandle: FileSystemDirectoryHandle | null
+  workspaceFiles: string[]
+  doc: OpenDocumentRef | null
   originalSource: string
-  isNewUnsavedFile: boolean
   isSaving: boolean
   lastError: string | null
-  setOpenedFile: (path: string, content: string) => void
-  markSaved: (path: string, savedSource: string) => void
+  setWorkspace: (dirHandle: FileSystemDirectoryHandle, files: string[]) => void
+  addWorkspaceFile: (name: string) => void
+  setOpenedFile: (doc: OpenDocumentRef, content: string) => void
+  markSaved: (doc: OpenDocumentRef, savedSource: string) => void
   setSaving: (saving: boolean) => void
   setError: (message: string | null) => void
 }
 
 export const useDocumentStore = create<DocumentState>((set) => ({
-  filePath: null,
+  workspaceDirHandle: null,
+  workspaceFiles: [],
+  doc: null,
   originalSource: '',
-  isNewUnsavedFile: true,
   isSaving: false,
   lastError: null,
-  setOpenedFile: (path, content) =>
-    set({ filePath: path, originalSource: content, isNewUnsavedFile: false, lastError: null }),
-  markSaved: (path, savedSource) =>
-    set({ filePath: path, originalSource: savedSource, isNewUnsavedFile: false, isSaving: false }),
+  setWorkspace: (dirHandle, files) => set({ workspaceDirHandle: dirHandle, workspaceFiles: files }),
+  addWorkspaceFile: (name) =>
+    set((s) => ({
+      workspaceFiles: s.workspaceFiles.includes(name)
+        ? s.workspaceFiles
+        : [...s.workspaceFiles, name].sort((a, b) => a.localeCompare(b))
+    })),
+  setOpenedFile: (doc, content) =>
+    set({ doc, originalSource: content, lastError: null }),
+  markSaved: (doc, savedSource) => set({ doc, originalSource: savedSource, isSaving: false }),
   setSaving: (saving) => set({ isSaving: saving }),
   setError: (message) => set({ lastError: message, isSaving: false })
 }))

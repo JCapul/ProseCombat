@@ -12,7 +12,7 @@ export type {
 } from '@shared/types/llmProvider'
 
 import type { LLMProvider, ProviderId } from '@shared/types/llmProvider'
-import type { AppSettings } from '@shared/types/ipcContract'
+import type { AppSettings } from '@shared/types/platformContract'
 
 export interface ProviderFactoryContext {
   settings: AppSettings

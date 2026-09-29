@@ -1,17 +1,12 @@
 node_modules/
-out/
 dist/
-dist-electron/
-release/
 *.local
 .DS_Store
 *.log
 coverage/
+*.tsbuildinfo
 
 # Sidecar metadata + scratch files left over from manually testing the app in
 # this directory — user data, not project source.
 .ai-editor/
 test-1.md
-
-# Throwaway visual-QA renders from scripts/render-icon-preview.mjs.
-scripts/preview-*.png
