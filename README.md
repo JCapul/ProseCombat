@@ -27,7 +27,7 @@ follows a stricter rule, taken from Thomas Ptacek's
 This is enforced in the code, not only in the system prompt: the critique
 schema has no field for replacement text, a heuristic filters out comments
 that read like smuggled rewrites, and there is no "accept suggestion"
-button. See [ARCHITECTURE.md](ARCHITECTURE.md) for the details.
+button.
 
 ## Your API key
 
@@ -58,10 +58,6 @@ Settings → Pages → Source set to "GitHub Actions" (one-time, manual).
 
 `vite.config.ts`'s `base` is hardcoded to `/ProseCombat/` to match the
 project-page URL; update it if the repo is ever renamed.
-
-## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
