@@ -110,4 +110,4 @@ minimal-diff saving, and the fresh-context guarantee described above.
 
 ## Final note
 
-Yes, this README was written with AI. But that's technical, so it's fine 😄.
+You're right, this README was written with AI. But that's technical, so it's fine 😄.
