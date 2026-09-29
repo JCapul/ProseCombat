@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Local-first, distraction-free WYSIWYG Markdown editor with critique-only AI editorial review.",
   "author": "ProseCombat",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "repository": {
