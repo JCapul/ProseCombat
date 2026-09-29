@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import type { OpenDocumentRef } from '@shared/types/platformContract'
 
 interface DocumentState {
+  /** Bumped on every setWorkspace call — combined with a doc's name to form a React key
+   *  that's unique across workspaces, since two different folders can both contain a
+   *  same-named file (e.g. "untitled.md"). See documentKey in App.tsx. */
+  workspaceId: number
   workspaceDirHandle: FileSystemDirectoryHandle | null
   workspaceFiles: string[]
   doc: OpenDocumentRef | null
@@ -17,13 +21,15 @@ interface DocumentState {
 }
 
 export const useDocumentStore = create<DocumentState>((set) => ({
+  workspaceId: 0,
   workspaceDirHandle: null,
   workspaceFiles: [],
   doc: null,
   originalSource: '',
   isSaving: false,
   lastError: null,
-  setWorkspace: (dirHandle, files) => set({ workspaceDirHandle: dirHandle, workspaceFiles: files }),
+  setWorkspace: (dirHandle, files) =>
+    set((s) => ({ workspaceId: s.workspaceId + 1, workspaceDirHandle: dirHandle, workspaceFiles: files })),
   addWorkspaceFile: (name) =>
     set((s) => ({
       workspaceFiles: s.workspaceFiles.includes(name)

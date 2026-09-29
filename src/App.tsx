@@ -21,13 +21,13 @@ import { peekLastWorkspaceName } from './platform/workspace'
 export default function App(): React.JSX.Element {
   const editorRef = useRef<Editor | null>(null)
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [documentKey, setDocumentKey] = useState('untitled')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [fileListOpen, setFileListOpen] = useState(false)
   const [rememberedWorkspaceName, setRememberedWorkspaceName] = useState<string | null>(null)
 
   const doc = useDocumentStore((s) => s.doc)
+  const workspaceId = useDocumentStore((s) => s.workspaceId)
   const workspaceDirHandle = useDocumentStore((s) => s.workspaceDirHandle)
   const workspaceFiles = useDocumentStore((s) => s.workspaceFiles)
   const originalSource = useDocumentStore((s) => s.originalSource)
@@ -82,7 +82,6 @@ export default function App(): React.JSX.Element {
   const openDocument = useCallback(
     (openedDoc: { name: string; fileHandle: FileSystemFileHandle; dirHandle: FileSystemDirectoryHandle }, content: string) => {
       setOpenedFile(openedDoc, content)
-      setDocumentKey(openedDoc.name)
       setFileListOpen(false)
     },
     [setOpenedFile]
@@ -120,20 +119,28 @@ export default function App(): React.JSX.Element {
   const handleSelectFile = useCallback(
     async (name: string) => {
       if (!workspaceDirHandle) return
-      const { doc: openedDoc, content } = await api.file.openFile(workspaceDirHandle, name)
-      openDocument(openedDoc, content)
+      try {
+        const { doc: openedDoc, content } = await api.file.openFile(workspaceDirHandle, name)
+        openDocument(openedDoc, content)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     },
-    [workspaceDirHandle, openDocument]
+    [workspaceDirHandle, openDocument, setError]
   )
 
   const handleCreateNewFile = useCallback(
     async (name: string) => {
       if (!workspaceDirHandle) return
-      const { doc: newDoc, content } = await api.file.createNew(workspaceDirHandle, name)
-      addWorkspaceFile(name)
-      openDocument(newDoc, content)
+      try {
+        const { doc: newDoc, content } = await api.file.createNew(workspaceDirHandle, name)
+        addWorkspaceFile(name)
+        openDocument(newDoc, content)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     },
-    [workspaceDirHandle, addWorkspaceFile, openDocument]
+    [workspaceDirHandle, addWorkspaceFile, openDocument, setError]
   )
 
   const handleSave = useCallback(async () => {
@@ -178,7 +185,6 @@ export default function App(): React.JSX.Element {
       await api.file.save(newDoc, contentToWrite)
       addWorkspaceFile(fileName)
       markSaved(newDoc, contentToWrite)
-      setDocumentKey(newDoc.name)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -228,6 +234,11 @@ export default function App(): React.JSX.Element {
   const colorOverrides: Record<string, string> = {}
   if (settings?.focusMode.backgroundColor) colorOverrides['--bg'] = settings.focusMode.backgroundColor
   if (settings?.focusMode.textColor) colorOverrides['--fg'] = settings.focusMode.textColor
+
+  // Unique per workspace + file, not just the file name — two different folders can
+  // both contain e.g. "untitled.md", and TipTapEditor relies on this key changing to
+  // reinitialize with the newly opened content instead of reusing the stale editor.
+  const documentKey = doc ? `${workspaceId}:${doc.name}` : 'untitled'
 
   return (
     <div className="app-shell" style={colorOverrides as React.CSSProperties}>
