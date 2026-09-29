@@ -1,12 +1,58 @@
 # ProseCombat
 
-A local-first, distraction-free WYSIWYG Markdown editor for essays and long-form
-nonfiction, with critique-only AI editorial review. The AI identifies problems,
-asks questions, and evaluates revisions — it never writes or rewrites your prose.
+**[Try it live →](https://jcapul.github.io/ProseCombat/)** (Chrome or Edge — needs a
+local folder to open and your own Anthropic API key)
 
-Built as a static web app: React, TipTap/ProseMirror, and the Anthropic API,
-talking directly to your local files via the browser's File System Access API
-(Chromium browsers only — Chrome, Edge, etc.).
+A distraction-free, local-first Markdown editor for essays and long-form
+nonfiction — with an AI editor built in that isn't allowed to write a single
+word of your prose.
+
+## What it is
+
+ProseCombat looks and feels like a normal writing app: a calm WYSIWYG
+document surface (headings render as headings, `**bold**` renders as bold —
+no Markdown syntax cluttering the page), a full-screen focus mode, and
+nothing else competing for attention. Documents are ordinary `.md` files on
+your own disk. There's no account, no cloud sync, no proprietary format —
+open a folder, and the app works with the real files in it, entirely in your
+browser, saving straight back to disk.
+
+The one thing it adds is an AI editor you summon on demand. It never runs in
+the background, never autocompletes, never suggests as you type.
+
+## Why
+
+Most "AI writing" tools quietly slide from *editor* into *ghostwriter*: one
+click and your sentence becomes the model's sentence. ProseCombat is built
+around a stricter rule, borrowed from Thomas Ptacek's essay "How to Write
+With an LLM" and from Margin/APODICTIC-style editorial tools:
+
+> The human writes the prose. The AI identifies problems, asks questions,
+> and evaluates revisions. It does not write the essay.
+
+That's not just a line in a system prompt — it's the architecture. The
+critique response schema has no field for replacement text, only
+`{ start, end, category, severity, comment }`
+([`shared/types/llmProvider.ts`](shared/types/llmProvider.ts)); a comment
+that reads like a smuggled rewrite gets filtered out before it ever reaches
+you ([`shared/critique/rewriteHeuristic.ts`](shared/critique/rewriteHeuristic.ts)).
+There's no "accept suggestion" button, because there's nothing generated to
+accept — critique modes (general, argument, structure, prose) only ever
+return comments explaining *what's wrong and why*, anchored to the exact
+passage they're about.
+
+The second piece is what happens after you revise. "Evaluate revision"
+sends your original passage, the original comment, and your new passage to
+a **brand-new model context with no memory of the conversation that
+produced the critique** — so the model isn't rubber-stamping its own earlier
+opinion, it's judging the revision cold, the way a second reader would.
+`AnthropicProvider.compare()`'s method signature has no history parameter
+at all; that's a structural guarantee, not a convention that a future change
+could quietly erode.
+
+The result is meant to feel like working with a sharp, silent editor: one
+who reads your draft, tells you exactly what's wrong with it, and leaves
+every word of the rewrite to you.
 
 ## Development
 
