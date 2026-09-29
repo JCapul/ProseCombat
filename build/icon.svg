@@ -1,0 +1,23 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C88A4A" />
+      <stop offset="1" stop-color="#8A4A1F" />
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="220" fill="url(#bg)" />
+
+  <!-- Stylized sun: center disc + 8 rounded rays, warm cream on the gradient badge. -->
+  <g fill="#FBF3E4">
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(0 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(45 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(90 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(135 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(180 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(225 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(270 512 512)" />
+    <rect x="477" y="182" width="70" height="160" rx="35" transform="rotate(315 512 512)" />
+    <circle cx="512" cy="512" r="150" />
+  </g>
+</svg>
